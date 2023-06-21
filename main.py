@@ -21,6 +21,7 @@ from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 
 from algo_sdk.logging_api import insert_into_wenda_logging
+from algo_sdk.feedback_api import insert_into_wenda_feedback
 from utils.log import logger
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -66,18 +67,43 @@ def read_root(request: Request):
     return {"message": "Hello World", "client_ip": request.client.host}
 
 
-class Item(BaseModel):
+class Log_Item(BaseModel):
     time: str
     ip_address: str
     prompt: str
     response: str
 
+class FB_Item(BaseModel):
+    time: str
+    ip_address: str
+    history: str
+    model_type: str
+    temperature: float
+    top_p: float
+    score: int
 
 @app.post("/api/logging/")
-async def text_logging(item: Item, request: Request):
+async def text_logging(item: Log_Item, request: Request):
     try:
         start_at = time.time()
         data = insert_into_wenda_logging(item.time, item.ip_address, item.prompt, item.response)
+        end_at = time.time()
+        time_length = (end_at - start_at)
+        response_data = {"resultCode": '00', "resultMessage": "操作成功!",
+                         "timeConsuming": "{:.2f}秒".format(time_length),
+                         "result": 'done'}
+    except Exception as e:
+        logger.info(traceback.format_exc())
+        response_data = {"resultCode": "", "resultMessage": "失败",
+                         "reason": str(e)}
+        raise HTTPException(status_code=500, detail=response_data)
+    return response_data
+
+@app.post("/api/feedback/")
+async def text_feedback(item: FB_Item, request: Request):
+    try:
+        start_at = time.time()
+        data = insert_into_wenda_feedback(item.time, item.ip_address, item.history, item.model_type, item.temperature, item.top_p, item.score)
         end_at = time.time()
         time_length = (end_at - start_at)
         response_data = {"resultCode": '00', "resultMessage": "操作成功!",
