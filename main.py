@@ -68,25 +68,25 @@ def read_root(request: Request):
 
 
 class Log_Item(BaseModel):
-    time: str
     ip_address: str
+    llm_type: str
     prompt: str
     response: str
+    history: object
 
 class FB_Item(BaseModel):
-    time: str
-    ip_address: str
-    history: str
-    model_type: str
+    history: object
+    llm_type: str
     temperature: float
     top_p: float
     score: int
+    current_func: str
 
-@app.post("/api/logging/")
+@app.post("/api/logging")
 async def text_logging(item: Log_Item, request: Request):
     try:
         start_at = time.time()
-        data = insert_into_wenda_logging(item.time, item.ip_address, item.prompt, item.response)
+        data = insert_into_wenda_logging(request.client.host, item.ip_address, item.llm_type, item.prompt, item.response, item.history)
         end_at = time.time()
         time_length = (end_at - start_at)
         response_data = {"resultCode": '00', "resultMessage": "操作成功!",
@@ -99,11 +99,11 @@ async def text_logging(item: Log_Item, request: Request):
         raise HTTPException(status_code=500, detail=response_data)
     return response_data
 
-@app.post("/api/feedback/")
+@app.post("/api/feedback")
 async def text_feedback(item: FB_Item, request: Request):
     try:
         start_at = time.time()
-        data = insert_into_wenda_feedback(item.time, item.ip_address, item.history, item.model_type, item.temperature, item.top_p, item.score)
+        data = insert_into_wenda_feedback(request.client.host,request.headers.get('referer'), item.llm_type, item.temperature, item.top_p, item.score, item.history, item.current_func)
         end_at = time.time()
         time_length = (end_at - start_at)
         response_data = {"resultCode": '00', "resultMessage": "操作成功!",
